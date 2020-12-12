@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+apply from: '../dependencies.gradle'
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(":Annotations")
+
+    testCompile testDependencies.junit
+    implementation commonDependencies.javapoet
+    implementation autoService.annotations
+    implementation autoService.compiler
+
+}

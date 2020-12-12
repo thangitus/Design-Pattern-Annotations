@@ -1,0 +1,5 @@
+rootProject.name = 'Design-Pattern-Annotations'
+include 'Annotations'
+include 'Processors'
+include 'Demo'
+
