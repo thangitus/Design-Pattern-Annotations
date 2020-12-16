@@ -41,12 +41,9 @@ class ConstructorBuilder extends BuilderAnnotatedType {
                 FieldSpec field = FieldSpec.builder(fieldType, fieldName, Modifier.PRIVATE).build();
                 fieldSpecs.add(field);
 
-                String methodName = "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName
-                        .substring(1);
-                MethodSpec method = MethodSpec.methodBuilder(methodName)
-                                              .addModifiers(Modifier.PUBLIC)
-                                              .returns(builderTypeName)
-                                              .addParameter(fieldType, fieldName)
+                String methodName = "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+                MethodSpec method = MethodSpec.methodBuilder(methodName).addModifiers(Modifier.PUBLIC)
+                                              .returns(builderTypeName).addParameter(fieldType, fieldName)
                                               .addStatement("this.$N = $N", fieldName, fieldName)
                                               .addStatement("return this").build();
 
@@ -82,7 +79,10 @@ class ConstructorBuilder extends BuilderAnnotatedType {
                                 continue;
                             }
 
-                            if (!fieldName.equals(fieldSpecs.get(i).name)) {
+                            String fieldType = param.asType().toString();
+                            FieldSpec fieldSpec = fieldSpecs.get(i);
+
+                            if (!fieldName.equals(fieldSpec.name) || !fieldType.equals(fieldSpec.type.toString())) {
                                 String constructorExpect = getConstructorExpect();
                                 throw new ProcessingException(enclosedElement,
                                                               "Constructor is ambiguous, it should be %s",
@@ -95,8 +95,7 @@ class ConstructorBuilder extends BuilderAnnotatedType {
                     }
                 }
             }
-            throw new ProcessingException(annotatedType,
-                                          "The annotated class must have constructor with all params");
+            throw new ProcessingException(annotatedType, "The annotated class must have constructor with all params");
         } catch (ProcessingException e) {
             BuilderProcessor.error(e.getElement(), e.getMessage());
         }
@@ -122,12 +121,10 @@ class ConstructorBuilder extends BuilderAnnotatedType {
 
     @Override
     protected MethodSpec generateBuildMethod() {
-        MethodSpec.Builder builder = MethodSpec.methodBuilder(methodBuildName)
-                                               .addModifiers(Modifier.PUBLIC)
+        MethodSpec.Builder builder = MethodSpec.methodBuilder(methodBuildName).addModifiers(Modifier.PUBLIC)
                                                .returns(ClassName.get(annotatedType.asType()))
                                                .addStatement("return new $N($N)",
-                                                             annotatedType.getSimpleName()
-                                                                          .toString(),
+                                                             annotatedType.getSimpleName().toString(),
                                                              fieldsName.toString());
         return builder.build();
     }
