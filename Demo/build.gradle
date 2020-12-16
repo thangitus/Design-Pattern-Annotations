@@ -11,5 +11,5 @@ repositories {
 
 dependencies {
     implementation project(":Annotations")
-    annotationProcessor(":Processors")
+    annotationProcessor project(":Processors")
 }
