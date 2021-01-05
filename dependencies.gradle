@@ -18,6 +18,7 @@ ext {
             truth: "com.google.truth:truth:$truth_version",
 
             kotlin_compile_testing: "com.github.tschuchortdev:kotlin-compile-testing:$kotlin_compile_testing_version",
+            google_compile_testing: 'com.google.testing.compile:compile-testing:0.10'
     ]
 
     auto_service_version = "1.0-rc7"

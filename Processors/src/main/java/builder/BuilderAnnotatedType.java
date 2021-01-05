@@ -1,70 +1,102 @@
 package builder;
 
-import com.squareup.javapoet.FieldSpec;
-import com.squareup.javapoet.JavaFile;
-import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.processing.Filer;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.PackageElement;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
 import javax.lang.model.util.Elements;
 
-import base.AnnotatedType;
+import utils.ProcessingException;
 
-abstract class BuilderAnnotatedType extends AnnotatedType {
-    protected final String PREFIX = "Builder";
+class BuilderAnnotatedType {
     protected String packageName;
-    protected String className;
     protected List<MethodSpec> methodSpecs = new ArrayList<>();
     protected List<FieldSpec> fieldSpecs = new ArrayList<>();
     protected String methodBuildName;
-    protected MethodSpec.Builder constructorBuilder;
-
-    public BuilderAnnotatedType(TypeElement annotatedType) {
-        super(annotatedType);
-        Builder builder = annotatedType.getAnnotation(Builder.class);
-        className = builder.builderClassName();
-        if (className.isEmpty()) {
-            className = annotatedType.getSimpleName().toString() + PREFIX;
-        }
-        methodBuildName = builder.buildMethodName();
-    }
+    protected TypeElement annotatedType;
+    StringBuilder params;
 
     public BuilderAnnotatedType(TypeElement annotatedType, Elements elementUtils) {
-        this(annotatedType);
+        Builder builder = annotatedType.getAnnotation(Builder.class);
+        methodBuildName = builder.buildMethodName();
+        this.annotatedType = annotatedType;
+
         String qualifiedClassName = annotatedType.getQualifiedName().toString();
         TypeElement superClassName = elementUtils.getTypeElement(qualifiedClassName);
         PackageElement pkg = elementUtils.getPackageOf(superClassName);
         packageName = pkg.isUnnamed() ? null : pkg.getQualifiedName().toString();
-        createCtorBuilder();
         generateFieldsAndMethods();
         checkConstructorAnnotatedType();
         methodSpecs.add(generateBuildMethod());
     }
 
-    protected abstract void checkConstructorAnnotatedType();
+    protected void checkConstructorAnnotatedType() {
+        params = new StringBuilder();
+        for (Element enclosedElement : annotatedType.getEnclosedElements()) {
+            if (enclosedElement.getKind().equals(ElementKind.CONSTRUCTOR)) {
+                ExecutableElement executableElement = (ExecutableElement) enclosedElement;
+                List<? extends VariableElement> parameters = executableElement.getParameters();
 
-    protected void createCtorBuilder() {
-        constructorBuilder = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
+                if (parameters.size() != fieldSpecs.size())
+                    continue;
+
+                for (VariableElement param : parameters) {
+                    if (params.length() > 0) {
+                        params.append(", ");
+                    }
+                    params.append(param.getSimpleName());
+                }
+                break;
+            }
+        }
     }
 
-    protected abstract void generateFieldsAndMethods();
+    protected void generateFieldsAndMethods() {
+        MethodSpec constructor = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).build();
+        methodSpecs.add(constructor);
 
-    protected abstract MethodSpec generateBuildMethod();
+        TypeName builderTypeName = ClassName.get(packageName, annotatedType.getSimpleName()+"Builder");
+        for (Element enclosedElement : annotatedType.getEnclosedElements()) {
+            if (enclosedElement.getKind().equals(ElementKind.FIELD)) {
+
+                if (enclosedElement.getAnnotation(Ignore.class) != null)
+                    continue;
+
+                String fieldName = enclosedElement.getSimpleName().toString();
+                TypeName fieldType = TypeName.get(enclosedElement.asType()); // String
+                FieldSpec field = FieldSpec.builder(fieldType, fieldName, Modifier.PRIVATE).build();
+                fieldSpecs.add(field);
+
+                String methodName = "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+                MethodSpec method =
+                        MethodSpec.methodBuilder(methodName).addModifiers(Modifier.PUBLIC).returns(builderTypeName)
+                                  .addParameter(fieldType, fieldName).addStatement("this.$N = $N", fieldName, fieldName)
+                                  .addStatement("return this").build();
+
+                methodSpecs.add(method);
+            }
+        }
+    }
+
+    protected MethodSpec generateBuildMethod() {
+        MethodSpec.Builder builder = MethodSpec.methodBuilder(methodBuildName).addModifiers(Modifier.PUBLIC)
+                                               .returns(ClassName.get(annotatedType.asType()))
+                                               .addStatement("return new $N($N)",
+                                                             annotatedType.getSimpleName().toString(),
+                                                             params.toString());
+        return builder.build();
+    }
 
     public void generateCode(Filer filer) {
 
-        TypeSpec.Builder typeSpecBuilder = TypeSpec.classBuilder(className)
-                                                   .addModifiers(Modifier.PUBLIC)
-                                                   .addFields(fieldSpecs).addMethods(methodSpecs);
+        TypeSpec.Builder typeSpecBuilder =
+                TypeSpec.classBuilder(annotatedType.getSimpleName()+"Builder").addModifiers(Modifier.PUBLIC).addFields(fieldSpecs)
+                        .addMethods(methodSpecs);
 
-        // Write file
         try {
             JavaFile.builder(packageName, typeSpecBuilder.build()).build().writeTo(filer);
         } catch (IOException e) {

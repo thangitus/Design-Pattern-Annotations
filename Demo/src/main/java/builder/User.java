@@ -1,12 +1,14 @@
 package builder;
 
-
 @Builder
 class User {
-    String name1;
-    String name2;
-    String name3;
-    private String email;
+   String name;
+   String email;
+   int old;
 
-    User(String name1, String name2 ,String name3, String email){};
+   User(String name, String email, int old) {
+      this.name = name;
+      this.email = email;
+      this.old = old;
+   };
 }

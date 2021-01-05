@@ -16,6 +16,7 @@ dependencies {
     testImplementation testDependencies.junit
     testImplementation testDependencies.truth
     testImplementation testDependencies.kotlin_compile_testing
+    testImplementation testDependencies.google_compile_testing
 
     implementation commonDependencies.javapoet
     implementation autoService.annotations

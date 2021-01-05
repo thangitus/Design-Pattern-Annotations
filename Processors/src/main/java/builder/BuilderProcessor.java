@@ -50,18 +50,11 @@ public class BuilderProcessor extends AbstractProcessor {
         try {
             for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(Builder.class)) {
                 if (annotatedElement.getKind() != ElementKind.CLASS) {
-                    throw new ProcessingException(annotatedElement,
-                                                  "Only class can be annotated with @%s",
+                    throw new ProcessingException(annotatedElement, "Only class can be annotated with @%s",
                                                   Builder.class.getSimpleName());
                 }
-                Builder builder = annotatedElement.getAnnotation(Builder.class);
-                int buildType = builder.buildType();
                 TypeElement annotatedType = (TypeElement) annotatedElement;
-                BuilderAnnotatedType builderAnnotatedType;
-                if (buildType == BuildType.SETTER)
-                    builderAnnotatedType = new SetterBuilder(annotatedType, elementUtils);
-                else
-                    builderAnnotatedType = new ConstructorBuilder(annotatedType, elementUtils);
+                BuilderAnnotatedType builderAnnotatedType = new BuilderAnnotatedType(annotatedType, elementUtils);
                 builderAnnotatedType.generateCode(filer);
             }
         } catch (ProcessingException e) {
@@ -71,14 +64,6 @@ public class BuilderProcessor extends AbstractProcessor {
         return false;
     }
 
-    /**
-     * Prints an error message
-     *
-     * @param e
-     *         The element which has caused the error. Can be null
-     * @param msg
-     *         The error message
-     */
     public static void error(Element e, String msg) {
         messager.printMessage(Diagnostic.Kind.ERROR, msg, e);
     }
